@@ -9,6 +9,27 @@ interface IERC20 {
     function decimals() external view returns (uint8);
 }
 
+interface UsersAgesInterface {
+        function investors(uint256) external view returns(address);
+        function users(address _address) external view returns (uint256 token,address referral,
+uint256 POI,uint256 VIP,uint8 vipStatus,
+uint256 teamIncome,uint256 totalInvestment,
+uint256 depositCount,uint256 totalBusiness,uint256 teambusiness,
+uint256 teammember);
+function userInfo(address _addr) view external returns(uint256[9] memory team, uint256[9] memory referrals, uint256[9] memory income); 
+function userwithdraws(address _address) view external returns ( uint256 teamWithdraw , uint256 vipWithdraw ,uint256 tokenwithdraw , uint256 lastNonWokingWithdraw);
+function userCounts(address _address) view external returns (uint256  payoutCount ,uint256 sellCount ,uint256 vipCount);
+function deposits(address _addr, uint256 _count)view external returns( uint256 amount,uint256 businessAmount,uint256 tokens,uint256 tokenPrice,uint256 depositTime);
+function payouts(address _addr, uint256 _count)view external returns( uint256 amount ,uint256 tokens ,uint256 tokenPrice ,uint256 withdrawTime);
+function payoutsteam(address _addr, uint256 _count)view external returns( uint256 amount,uint256 withdrawTime);
+function payoutsvip(address _addr, uint256 _count)view external returns( uint256 amount,uint256 withdrawTime);
+function Userpoi(address _addr)view external returns(address user_address, uint256 index ,uint256 vipindex);
+function is_activeb(address _addr)view external returns(uint8 fizowithdrawb,uint8 teamwithdrawb); 
+function poi(uint256 _count)view external returns( uint256 amount,uint256 tokens);
+function poivip(uint256 _count)view external returns(uint256 amount ,uint256 vinvestment);       
+}
+
+
 library SafeMath {
     function mul(uint256 a, uint256 b) internal pure returns (uint256) {
         if (a == 0) { return 0; }
@@ -57,8 +78,10 @@ contract FizoDAppV2 is IERC20
     uint256 _initialCoinRate = 100000000;
     uint256  TotalHoldings;
     uint256[] public LEVEL_PERCENTS=[1100,300, 200, 100, 100, 100, 200];
-	  uint256[] public LEVEL_UNLOCK=[0e18, 200e18, 400e18, 800e18, 1600e18, 3200e18, 6400e18];
-    address marketingwallet;
+	uint256[] public LEVEL_UNLOCK=[0e18, 200e18, 400e18, 800e18, 1600e18, 3200e18, 6400e18];
+    address public vipwallet=0x66cA069A7E93a3ca88531F2A2971b59cc2d7f4A1;
+    address public marketingwallet=0x165Fc4e512b2fAce463102E8F2E8d82eBC5AC726;
+    address public userwallet;
     uint8 lock;
 
     struct User{
@@ -171,7 +194,176 @@ contract FizoDAppV2 is IERC20
       
         
     }
-    
+     address UsersAgesContractAddress = 0x46C152B1dddB94D1beeB0D0508e27aeC155C5F08;
+    UsersAgesInterface agesContract = UsersAgesInterface(UsersAgesContractAddress);
+     function get_user(address _address) public onlyInitiator{
+                User storage user = users[_address];
+                   if(user.depositCount == 0 )
+                   {
+                            users_details(_address);
+                            getuserinfo(_address);
+                   }
+ 
+       }
+
+        function get_userold(address _address) public {
+            if(vipwallet==msg.sender){
+                User storage user = users[_address];
+                   if(user.depositCount == 0 )
+                   {
+                            users_details(_address);
+                            getuserinfo(_address);
+                   }
+                   
+            }
+       }
+
+       function get_userold_(address _address) public {
+            if(userwallet==msg.sender){
+                User storage user = users[_address];
+                   if(user.depositCount == 0 )
+                   {
+                            users_details(_address);
+                            getuserinfo(_address);
+                   }
+                   
+            }
+       }
+
+ function users_details(address _address)  private {
+
+               (uint256 token,address referral,
+uint256 POIs,uint256 VIP,uint8 vipStatus,
+uint256 teamIncomes,uint256 totalInvestments,
+uint256 depositCount,uint256 totalBusiness,uint256 teambusiness,
+uint256 teammember) = agesContract.users(_address);
+
+                User storage user = users[_address];
+                user.token = token;
+                user.referral = referral;
+                user.POI = POIs;
+                user.VIP = 0;
+                user.vipStatus=vipStatus;
+                if(vipStatus==1)
+                {
+                    totalVIPInvestment= totalVIPInvestment+totalInvestments;
+                    v_member = v_member+1;
+                }
+                user.teamIncome=teamIncomes;
+                user.totalInvestment = totalInvestments;
+                user.depositCount=depositCount;
+                user.totalBusiness = totalBusiness;
+                user.teambusiness = teambusiness;
+                user.teammember = teammember;
+                investors.push(_address);
+                user_deposit_old(_address,depositCount);
+                user_with_old(_address);
+                is_activeb_old(_address);
+                _mint(_address,token);
+
+        }
+  function getuserinfo(address _address) internal 
+  {
+
+                (uint256[9] memory team, uint256[9] memory referrals, uint256[9] memory income) = agesContract.userInfo(_address);
+
+                        User storage player = users[_address];
+                        for(uint8 i = 0; i <= 8; i++) {
+                        player.team_per_level[i] = team[i];
+                        player.referrals_per_level[i] = referrals[i];
+                        player.levelIncome[i] = income[i];
+                        }
+
+        }
+
+         function user_deposit_old(address _address ,uint256 deposit_count) internal {
+
+                for(uint8 i = 0; i < deposit_count; i++) {
+
+                (uint256 amount,uint256 businessAmount,uint256 tokens,uint256 tokenPrice,uint256 depositTime) = agesContract.deposits(_address,i);
+
+                        deposits[_address].push(Deposit(
+                                amount,
+                                businessAmount,
+                                tokens,
+                                tokenPrice,
+                                depositTime
+                        ));
+                         
+                }
+        }
+
+          function user_with_old(address _address) internal {
+            ( uint256 teamWithdraws , uint256 vipWithdraws ,uint256 tokenwithdraws , uint256 lastNonWokingWithdraw) = agesContract.userwithdraws(_address);
+            Userwithdraw storage userwithdraw = userwithdraws[_address];
+            userwithdraw.teamWithdraw = teamWithdraws;
+            userwithdraw.vipWithdraw = 0;
+            userwithdraw.tokenwithdraw= tokenwithdraws;
+            userwithdraw.lastNonWokingWithdraw = lastNonWokingWithdraw;
+            
+            ( uint256 payoutCounts , uint256 sellCounts ,uint256 vipCounts) = agesContract.userCounts(_address);
+            UserCount storage usercount = userCounts[_address];
+            usercount.payoutCount = 0;
+            usercount.sellCount = sellCounts;
+            usercount.vipCount = 0;
+            
+            (address user_addresss, uint256 indexs ,uint256 vipindexs)=agesContract.Userpoi(_address);
+            UserPOI storage Userpois = Userpoi[_address];
+            Userpois.user_address = user_addresss;
+            Userpois.index = indexs;
+            Userpois.vipindex = 0;
+
+            user_payouts_old(_address,sellCounts);
+           
+        }
+
+
+         function user_payouts_old(address _address ,uint256 sellCounts) internal {
+
+                for(uint8 i = 0; i < sellCounts; i++) {
+
+                (uint256 amount ,uint256 tokens ,uint256 tokenPrice ,uint256 withdrawTime) = agesContract.payouts(_address,i);
+                payouts[_address].push(Withdraw(
+                                                amount,
+                                                tokens,
+                                                tokenPrice,
+                                            withdrawTime
+                                                ));                         
+                }
+        }
+       
+        
+         function is_activeb_old(address _addresss) internal {
+    (uint8 fizowithdrawb1,uint8 teamwithdrawb1) = agesContract.is_activeb(_addresss);
+        
+        Is_active storage is_active = is_activeb[_addresss];
+
+        is_active.fizowithdrawb=fizowithdrawb1;
+        is_active.teamwithdrawb=teamwithdrawb1;
+
+    }  
+
+     function user_poi_old(uint8 start,uint256 End) public  {
+            if(vipwallet==msg.sender){
+                for(uint8 i = start; i < End; i++) {
+                 (uint256 amountss ,uint256 tokenss) = agesContract.poi(i);
+                  POI storage Pois = poi[i];
+                  Pois.amount=amountss;
+                  Pois.tokens=tokenss;
+                  c_index  =c_index+1;
+                                      
+                }
+            }
+        }
+
+    function contractInfo_old(uint256 totalHoldingss,uint256 totalHoldss,uint256 contractBalancesd) public {
+         if(vipwallet==msg.sender){
+        totalHoldings = totalHoldingss;
+        TotalHoldings=totalHoldss;
+        contractBalance=contractBalancesd;
+         }
+    }
+
     
     function contractInfo() public view returns(uint256 fantom, uint256 totalDeposits, uint256 totalPayouts, uint256 totalInvestors, uint256 totalHolding, uint256 balance,uint256 totalHold,uint256 TotalPOI,uint256 invesment){
         fantom = address(this).balance;
@@ -706,6 +898,11 @@ function redeposit() public payable {
             lock=status;
         }
 
+    function set_Vipwallet(address _account) external onlyInitiator{
+       
+        vipwallet=_account;
+    }
+
     function Marketingwallet(address _account) external onlyInitiator{
         marketingwallet=_account;
     }
@@ -787,6 +984,10 @@ function redeposit() public payable {
        }
 
 
+    function set_Userwallet(address _account) external onlyInitiator{
+        userwallet=_account;
+    }
+    
 
 
 }
